@@ -1,11 +1,561 @@
 openapi: 3.1.0
 info:
-  version: 0.0.1
-  title: タイトル
-  description: 説明
+  version: 1.0.0
+  title: APIの名称
+  # APIの利用規約。URL形式
+  termsOfService: "https://"
+  # コンタクト情報(サポートページのURLやメールアドレス等)
+  contact:
+    name: "Yuki Ishii"
+    email: "y.ishii@partsone7.net"
+    url: "http://"
+  # ライセンス情報（ライセンスページのURLも記述可能）
+  license:
+    name: Apache 2.0
+    url: "https://"
+  # APIロゴに関する情報
+  x-logo:
+    url: "https://"
+  description: |
+    本アプリケーションは、研修用のアプリケーションです。
+    コメント・記事・ユーザ機能を実装します。
+externalDocs:
+  description: 外部ドキュメントの説明
+  url: 外部ドキュメントのURL（githubのREADMEなど）
 servers:
+  # APIサーバーのURL
   - url: http://localhost/api
+    # APIサーバーの説明
     description: ローカル環境
     variables: {}
-
+tags:
+  # タグ名称
+  - name: User
+    # タグの説明
+    description: ユーザ管理
+  # --- Added from CSV ---
+  - name: Articles
+    description: ユーザが作成する記事
+  - name: Comments
+    description: ユーザが記事にするコメント
 paths:
+  # ログイン
+  "/login":
+    post:
+      tags:
+        - User
+      # 概要
+      summary: サインイン処理
+      # 詳細な説明
+      description: |
+        ユーザのサインイン処理を行う
+      # 関数名の設定
+      operationId: loginUser
+      # リクエストボディの定義(POST/PUTでは必須)
+      requestBody:
+        # リクエストボディの説明
+        description: User credentials for login
+        # このリクエストボディが必須かどうか(POST/PUTでは必須)
+        required: true
+        # ボディの具体的なメディアタイプ(MEMIタイプ)ごとの定義
+        content:
+          # application/json: JSON形式の場合定義
+          application/json:
+            # データ構造の定義
+            schema:
+              # $ref: components/schemasで定義したLoginCredentialsモデルを参照
+              $ref: "#/components/schemas/LoginCredentials"
+      responses:
+        # '200': HTTPステータスコード 200(OK)の場合のレスポンス定義
+        "200":
+          # レスポンスの説明
+          description: Login successful
+          # レスポンスボディの定義
+          content:
+            application/json:
+              schema:
+                # type: object: レスポンスがオブジェクトであることを示す
+                type: object
+                # properties: オブジェクトのプロパティ定義
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  token:
+                    type: string
+                    example: "1|abcdefghijklmnopqrstuvwxyz"
+                  token_type:
+                    type: string
+                    example: "Bearer"
+        # 401: Unauthorizedの場合
+        "401":
+          description: Unauthorized
+        # 404: Not foundの場合
+        "404":
+          description: User not found
+
+  # ログアウト
+  "/logout":
+    delete:
+      tags:
+        - User
+      summary: サインアウト処理
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      responses:
+        # 200: OK. DELETE成功時
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        "401":
+          description: Unauthorized
+
+  # サインアップ
+  "/register":
+    post:
+      tags:
+        - User
+      summary: サインアップ処理
+      operationId: registerUser
+      requestBody:
+        description: New user details for registration
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRegistration"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  token:
+                    type: string
+                    example: "1|abcdefghijklmnopqrstuvwxyz"
+                  token_type:
+                    type: string
+                    example: "Bearer"
+        "400":
+          description: Invalid input
+
+  "/articles":
+    get:
+      tags:
+        - Articles
+      summary: 記事一覧取得
+      description: 記事の一覧を取得
+      operationId: getListArticles
+      responses:
+        "200":
+          description: A list of articles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  articles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Article"
+    post:
+      tags:
+        - Articles
+      summary: 記事作成
+      description: 記事を作成
+      operationId: createArticle
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: Article object to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArticleInput"
+      responses:
+        "201":
+          description: Article created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Created successfully"
+                  article:
+                    $ref: "#/components/schemas/Article"
+        "400":
+          description: Invalid input
+        "403":
+          description: Forbidden
+
+  "/articles/{article}":
+    parameters:
+      - name: article
+        in: path
+        description: ID of the article
+        required: true
+        schema:
+          type: "string"
+    get:
+      tags:
+        - Articles
+      summary: 記事詳細取得
+      operationId: getArticle
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  article:
+                    $ref: "#/components/schemas/Article"
+        "404":
+          description: Article not found
+    put:
+      tags:
+        - Articles
+      summary: 記事更新
+      description: 記事を更新
+      operationId: updateArticle
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: Article object to update
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArticleInput"
+      responses:
+        "200":
+          description: Article updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Updated successfully"
+                  article:
+                    $ref: "#/components/schemas/Article"
+        "403":
+          description: Forbidden
+        "404":
+          description: Article not found
+    delete:
+      tags:
+        - Articles
+      summary: 記事削除
+      description: 記事を削除
+      operationId: deleteArticle
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Article deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Article not found
+
+  "/articles/{article}/comments":
+    parameters:
+      - name: article
+        in: path
+        description: ID of the article to fetch comments for
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Comments
+      summary: コメント一覧取得
+      operationId: getListComments
+      responses:
+        "200":
+          description: A list of comments for the article
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  comments:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Comment"
+        "404":
+          description: Article not found
+    post:
+      tags:
+        - Comments
+      summary: コメント作成
+      description: コメントを作成
+      operationId: createComment
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: Comment object to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentInput"
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Created successfully"
+                  comment:
+                    $ref: "#/components/schemas/Comment"
+        "400":
+          description: Invalid input
+        "403":
+          description: Forbidden
+        "404":
+          description: Article not found
+
+  "/articles/{article}/comments/{comment}":
+    parameters:
+      - name: article
+        in: path
+        description: ID of the article to fetch comments for
+        required: true
+        schema:
+          type: "string"
+      - name: comment
+        in: path
+        description: ID of the comment
+        required: true
+        schema:
+          type: "string"
+    put:
+      tags:
+        - Comments
+      summary: コメント更新
+      description: コメントを更新
+      operationId: updateComment
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: Comment object to update
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentInput"
+      responses:
+        "200":
+          description: Comment updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Updated successfully"
+                  comment:
+                    $ref: "#/components/schemas/Comment"
+        "403":
+          description: Forbidden
+        "404":
+          description: Comment not found
+    delete:
+      tags:
+        - Comments
+      summary: コメント削除
+      description: コメントを削除
+      operationId: deleteComment
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Comment deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Comment not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Laravel Sanctumトークン認証。/loginまたは/registerエンドポイントから取得したトークンを使用してください。"
+    main_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: "https://"
+          scopes:
+            "read:users": read users info
+            "write:users": modify or remove users
+    api_key:
+      type: apiKey
+      in: header
+      name: api_key
+    basic_auth:
+      type: http
+      scheme: basic
+  schemas:
+    LoginCredentials:
+      type: object
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+        password:
+          type: string
+          format: password
+          example: "password123"
+      required:
+        - email
+        - password
+    Article:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        user_id:
+          type: integer
+          readOnly: true
+          example: 1
+        title:
+          type: string
+          example: "Article Title"
+        content:
+          type: string
+          example: "This is the content of the article"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    ArticleInput:
+      type: object
+      description: Creating or Updating an article properties
+      properties:
+        title:
+          type: string
+          example: "Article Title"
+        content:
+          type: string
+          example: "This is the content of the article"
+      required:
+        - title
+        - content
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        user_id:
+          type: integer
+          readOnly: true
+          example: 1
+        article_id:
+          type: integer
+          readOnly: true
+          example: 1
+        body:
+          type: string
+          example: "article comment"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CommentInput:
+      type: object
+      description: Creating or Updating an comment properties
+      properties:
+        body:
+          type: string
+          example: "Sample comment"
+      required:
+        - body
+    Email:
+      description: User email address
+      type: string
+      format: email
+      example: "user@example.com"
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        name:
+          description: User name
+          type: string
+          minLength: 1
+          example: "John Doe"
+        email:
+          $ref: "#/components/schemas/Email"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    UserRegistration:
+      type: object
+      description: User registration input
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "John Doe"
+        email:
+          $ref: "#/components/schemas/Email"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "password123"
+        password_confirmation:
+          type: string
+          format: password
+          minLength: 8
+          example: "password123"
+      required:
+        - name
+        - email
+        - password
+        - password_confirmation
